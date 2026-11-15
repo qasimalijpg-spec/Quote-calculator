@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quote Calculator</title>
+<meta name="description" content="Clothing manufacturing quote calculator (PKR / USD)">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Quotes">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<style>
+  :root {
+    --bg: #f3f5f7;
+    --card: #ffffff;
+    --text: #15202b;
+    --muted: #64748b;
+    --line: #e2e8f0;
+    --brand: #0f766e;
+    --brand-soft: #e6f4f2;
+    --brand-text: #ffffff;
+    --danger: #c2410c;
+    --good: #15803d;
+    --shadow: 0 1px 2px rgba(15,23,42,.06), 0 4px 14px rgba(15,23,42,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1215;
+      --card: #141d21;
+      --text: #e8eef1;
+      --muted: #94a3b8;
+      --line: #263238;
+      --brand: #2dd4bf;
+      --brand-soft: #123330;
+      --brand-text: #04201d;
+      --danger: #fb923c;
+      --good: #4ade80;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.4;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--bg);
+    padding: calc(12px + env(safe-area-inset-top)) 16px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+  main { max-width: 680px; margin: 0 auto; padding: 14px 16px 24px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--line);
+  }
+  .card h2 {
+    margin: 0 0 12px; font-size: 18px; display: flex; align-items: center; gap: 10px;
+  }
+  .step {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--brand); color: var(--brand-text); font-size: 15px; font-weight: 700; flex: none;
+  }
+  .hint { color: var(--muted); font-size: 14px; margin: 4px 0 0; }
+
+  /* Choice buttons */
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .choices.one { grid-template-columns: 1fr; }
+  .choice {
+    border: 2px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 14px; padding: 14px 12px; text-align: left; font: inherit; cursor: pointer;
+    min-height: 64px;
+  }
+  .choice b { display: block; font-size: 17px; }
+  .choice span { color: var(--muted); font-size: 13px; }
+  .choice.selected { border-color: var(--brand); background: var(--brand-soft); }
+
+  /* Tick rows */
+  .tick {
+    display: flex; align-items: center; gap: 12px; padding: 12px 4px;
+    border-bottom: 1px solid var(--line); cursor: pointer; min-height: 56px;
+  }
+  .tick:last-child { border-bottom: none; }
+  .tick input[type=checkbox] {
+    width: 26px; height: 26px; accent-color: var(--brand); flex: none; margin: 0;
+  }
+  .tick .label { flex: 1; }
+  .tick .price { color: var(--muted); font-size: 15px; white-space: nowrap; }
+  .sub { padding: 0 4px 12px 42px; display: none; border-bottom: 1px solid var(--line); }
+  .sub.show { display: block; }
+
+  label.field { display: block; margin-bottom: 12px; }
+  label.field > span { display: block; font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  input[type=text], input[type=number], input[type=tel], input:not([type]) {
+    width: 100%; font-size: 18px; padding: 13px 14px; border-radius: 12px;
+    border: 1.5px solid var(--line); background: var(--bg); color: var(--text);
+    font-family: inherit; -webkit-appearance: none; appearance: none;
+  }
+  input:focus { outline: none; border-color: var(--brand); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .seg { display: flex; gap: 8px; margin-bottom: 10px; }
+  .seg button {
+    flex: 1; padding: 11px; border-radius: 10px; border: 2px solid var(--line);
+    background: var(--card); color: var(--text); font: inherit; font-weight: 600; cursor: pointer;
+  }
+  .seg button.selected { border-color: var(--brand); background: var(--brand-soft); }
+
+  /* Buttons */
+  .btn {
+    display: block; width: 100%; padding: 16px; border-radius: 14px; border: none;
+    font: inherit; font-weight: 700; font-size: 17px; cursor: pointer; text-align: center;
+    background: var(--brand); color: var(--brand-text); margin-bottom: 10px;
+  }
+  .btn.secondary { background: var(--brand-soft); color: var(--text); border: 1.5px solid var(--line); }
+  .btn.danger { background: transparent; color: var(--danger); border: 1.5px solid var(--danger); }
+  .btn.small { padding: 10px 12px; font-size: 15px; width: auto; display: inline-block; margin: 0; }
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Results */
+  .breakdown { width: 100%; border-collapse: collapse; font-size: 16px; }
+  .breakdown td { padding: 7px 0; border-bottom: 1px dashed var(--line); }
+  .breakdown td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .breakdown tr.total td { font-weight: 700; border-bottom: none; border-top: 2px solid var(--text); padding-top: 10px; }
+  .breakdown .group td { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; border-bottom: none; padding-top: 12px; text-align: left !important; }
+  .big-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .big {
+    background: var(--bg); border-radius: 12px; padding: 12px; border: 1px solid var(--line);
+  }
+  .big small { display: block; color: var(--muted); font-size: 13px; }
+  .big strong { display: block; font-size: 20px; font-variant-numeric: tabular-nums; word-break: break-word; }
+  .big em { display: block; font-style: normal; color: var(--muted); font-size: 14px; }
+  .big.quote { background: var(--brand-soft); border-color: var(--brand); }
+  .big.profit strong { color: var(--good); }
+  .warn { color: var(--danger); font-size: 15px; margin: 8px 0 0; }
+
+  /* Saved quotes */
+  .saved-item { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .saved-item:last-child { border-bottom: none; }
+  .saved-item .top { display: flex; justify-content: space-between; gap: 10px; }
+  .saved-item .name { font-weight: 700; font-size: 18px; }
+  .saved-item .meta { color: var(--muted); font-size: 14px; }
+  .saved-item .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .empty { color: var(--muted); text-align: center; padding: 24px 8px; }
+
+  /* Settings table */
+  .set-product { border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 12px; }
+  .set-product:last-child { border-bottom: none; margin-bottom: 0; }
+  .set-product h3 { margin: 0 0 8px; font-size: 16px; }
+  .grid4 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+  .grid4 label.field { margin-bottom: 4px; }
+  .grid4 label.field > span { font-size: 13px; font-weight: 600; color: var(--muted); }
+
+  /* Bottom nav */
+  nav.tabs {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
+    display: flex; background: var(--card); border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav.tabs button {
+    flex: 1; border: none; background: none; color: var(--muted); font: inherit;
+    font-size: 13px; font-weight: 600; padding: 10px 4px 12px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  nav.tabs button svg { width: 26px; height: 26px; }
+  nav.tabs button.active { color: var(--brand); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(20px); opacity: 0;
+    background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: 999px;
+    font-size: 15px; font-weight: 600; transition: all .25s; pointer-events: none; z-index: 20;
+    max-width: calc(100% - 32px); text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .sticky-total {
+    position: fixed; left: 0; right: 0; bottom: calc(64px + env(safe-area-inset-bottom)); z-index: 9;
+    background: var(--brand); color: var(--brand-text); padding: 10px 16px;
+    display: flex; justify-content: space-between; align-items: center; font-weight: 700;
+    cursor: pointer;
+  }
+  .sticky-total small { font-weight: 500; opacity: .85; display: block; font-size: 12px; }
+  body.has-sticky { padding-bottom: calc(140px + env(safe-area-inset-bottom)); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="headerTitle">Quote Calculator</h1>
+  <p id="headerSub">Make a price for your client in PKR (and USD)</p>
+</header>
+
+<main>
+  <!-- ================= CALCULATOR ================= -->
+  <section class="page active" id="page-calc">
+
+    <div class="card">
+      <h2><span class="step">1</span> Choose the product</h2>
+      <div class="choices" id="productChoices"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">2</span> Choose the fabric</h2>
+      <div class="choices one" id="fabricChoices"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">3</span> Extras <span class="hint" style="margin:0">(optional)</span></h2>
+      <div id="extrasList"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">4</span> Trims &amp; packaging</h2>
+      <div id="trimsList"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">5</span> Shipping</h2>
+      <label class="field">
+        <span>Shipping weight per piece (kg)</span>
+        <input id="shipWeight" type="text" inputmode="decimal" placeholder="">
+      </label>
+      <p class="hint" id="shipHint"></p>
+      <div class="tick" style="border:none;padding-bottom:0">
+        <input type="checkbox" id="shipOn" checked>
+        <label class="label" for="shipOn">Include shipping in the price</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">6</span> Quantity &amp; profit</h2>
+      <label class="field">
+        <span>Number of pieces</span>
+        <input id="qty" type="text" inputmode="numeric" placeholder="e.g. 100">
+      </label>
+      <label class="field">
+        <span>One-off costs for the whole order (PKR)</span>
+        <input id="oneOff" type="text" inputmode="decimal" placeholder="e.g. sample or screen setup">
+      </label>
+      <p class="hint" style="margin:-6px 0 12px">This amount is shared equally across all pieces.</p>
+      <label class="field">
+        <span>Profit %</span>
+        <input id="margin" type="text" inputmode="decimal" placeholder="e.g. 25">
+      </label>
+      <p class="hint" style="margin:-6px 0 12px">Added on top of your cost. Example: cost 1,000 + 25% = quote 1,250.</p>
+      <label class="field">
+        <span>Dollar rate (PKR for 1 USD) – optional</span>
+        <input id="usdRate" type="text" inputmode="decimal" placeholder="e.g. 280">
+      </label>
+    </div>
+
+    <div class="card" id="resultCard">
+      <h2><span class="step">7</span> Your quote</h2>
+      <div id="resultBox"></div>
+    </div>
+
+    <div class="card">
+      <label class="field">
+        <span>Client name</span>
+        <input id="clientName" type="text" placeholder="e.g. John – Brooklyn Streetwear" autocomplete="off">
+      </label>
+      <button class="btn" id="saveBtn">💾 Save this quote</button>
+      <div class="btn-row">
+        <button class="btn secondary" id="shareBtn">📤 Share</button>
+        <button class="btn secondary" id="copyBtn">📋 Copy</button>
+      </div>
+      <button class="btn danger" id="resetBtn" style="margin-top:4px">Start a new quote</button>
+    </div>
+  </section>
+
+  <!-- ================= SAVED ================= -->
+  <section class="page" id="page-saved">
+    <div class="card">
+      <h2>Saved quotes</h2>
+      <label class="field" style="margin-bottom:4px">
+        <input id="savedSearch" type="text" placeholder="🔍 Search by client name">
+      </label>
+      <div id="savedList"></div>
+    </div>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section class="page" id="page-settings">
+    <p class="hint" style="margin:0 0 12px">Change any default price here. Changes save automatically on this device.</p>
+
+    <div class="card">
+      <h2>Business name</h2>
+      <label class="field" style="margin:0">
+        <span>Shown at the top of messages you share</span>
+        <input id="setBizName" type="text" placeholder="e.g. Your company name">
+      </label>
+    </div>
+
+    <div class="card">
+      <h2>Products (cost per piece, PKR)</h2>
+      <div id="setProducts"></div>
+    </div>
+
+    <div class="card">
+      <h2>Fabric price per kg (PKR)</h2>
+      <div id="setFabrics"></div>
+    </div>
+
+    <div class="card">
+      <h2>Extras (PKR per piece)</h2>
+      <div id="setExtras"></div>
+    </div>
+
+    <div class="card">
+      <h2>Trims &amp; packaging</h2>
+      <p class="hint" style="margin:-6px 0 10px">Enter the price for 100 pieces. The app works out the price per piece.</p>
+      <div id="setTrims"></div>
+    </div>
+
+    <div class="card">
+      <h2>Shipping</h2>
+      <label class="field" style="margin:0">
+        <span>Shipping price per kg (PKR)</span>
+        <input id="setShip" type="text" inputmode="decimal">
+      </label>
+    </div>
+
+    <div class="card">
+      <h2>Backup</h2>
+      <p class="hint" style="margin:-6px 0 12px">Save a copy of your prices and saved quotes as a file, so you never lose them (for example when you change phone).</p>
+      <div class="btn-row">
+        <button class="btn secondary" id="exportBtn">⬇️ Backup</button>
+        <button class="btn secondary" id="importBtn">⬆️ Restore</button>
+      </div>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+      <button class="btn danger" id="resetSettingsBtn">Reset all prices to original</button>
+    </div>
+  </section>
+</main>
+
+<div class="sticky-total" id="stickyTotal" style="display:none">
+  <div><small>Quote per piece</small><span id="stickyPiece">–</span></div>
+  <div style="text-align:right"><small>Whole order</small><span id="stickyOrder">–</span></div>
+</div>
+
+<nav class="tabs">
+  <button data-page="calc" class="active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="8" y2="15"/><line x1="12" y1="15" x2="12" y2="15"/><line x1="16" y1="15" x2="16" y2="18"/><line x1="8" y1="18" x2="12" y2="18"/></svg>
+    Calculator
+  </button>
+  <button data-page="saved">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+    Saved
+  </button>
+  <button data-page="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Settings
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- Default prices ---------------- */
+  var DEFAULTS = {
+    bizName: '',
+    products: {
+      tshirt:  { name: 'T-shirt', note: 'Cotton jersey', kg: 0.5, cutting: 30,  stitching: 180, pressing: 50 },
+      hoodie:  { name: 'Hoodie',  note: '',              kg: 1,   cutting: 50,  stitching: 300, pressing: 50 },
+      trouser: { name: 'Trouser', note: '',              kg: 1,   cutting: 50,  stitching: 220, pressing: 50 },
+      suit:    { name: 'Suit',    note: 'Hoodie + trouser', kg: 2, cutting: 100, stitching: 520, pressing: 100 }
+    },
+    fabrics: {
+      f6535:   { name: '65/35', note: 'Standard', price: 1250 },
+      f8020:   { name: '80/20 cotton-polyester', note: 'Premium', price: 1700 },
+      cotton:  { name: '100% cotton', note: 'Rare', price: 2100 }
+    },
+    extras: {
+      acid:       { name: 'Acid wash',   price: 300 },
+      distress:   { name: 'Distressing', price: 150 },
+      zipper:     { name: 'Zipper',      price: 150 }
+    },
+    trims: {
+      labels: { name: 'Labels',            per100: 3000 },
+      tags:   { name: 'Cards / hang tags', per100: 4000 },
+      poly:   { name: 'Poly bags',         per100: 8000 }
+    },
+    shipPerKg: 3000
+  };
+
+  var KEY_SETTINGS = 'qc_settings_v1';
+  var KEY_QUOTES = 'qc_quotes_v1';
+  var KEY_DRAFT = 'qc_draft_v1';
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function load(key, fallback) {
+    try { var v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+    catch (e) { return fallback; }
+  }
+  function store(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+  }
+  // Merge saved settings onto defaults so new fields always exist
+  function mergeDeep(base, extra) {
+    var out = clone(base);
+    if (!extra || typeof extra !== 'object') return out;
+    Object.keys(extra).forEach(function (k) {
+      if (out[k] && typeof out[k] === 'object' && !Array.isArray(out[k])) out[k] = mergeDeep(out[k], extra[k]);
+      else out[k] = extra[k];
+    });
+    return out;
+  }
+
+  var settings = mergeDeep(DEFAULTS, load(KEY_SETTINGS, {}));
+  var quotes = load(KEY_QUOTES, []);
+
+  function blankDraft() {
+    return {
+      product: 'tshirt',
+      fabric: 'f6535',
+      extras: { acid: false, distress: false, zipper: false },
+      rhinestone: { on: false, price: '' },
+      deco: { on: false, kind: 'Printing', price: '' },
+      trims: { labels: true, tags: true, poly: true },
+      shipOn: true,
+      shipWeight: '',
+      qty: '',
+      oneOff: '',
+      margin: '',
+      usdRate: '',
+      client: ''
+    };
+  }
+  var draft = mergeDeep(blankDraft(), load(KEY_DRAFT, {}));
+  if (!settings.products[draft.product]) draft.product = 'tshirt';
+  if (!settings.fabrics[draft.fabric]) draft.fabric = Object.keys(settings.fabrics)[0];
+
+  /* ---------------- Helpers ---------------- */
+  function $(id) { return document.getElementById(id); }
+  function num(v) {
+    if (v === null || v === undefined) return 0;
+    var n = parseFloat(String(v).replace(/,/g, '').trim());
+    return isFinite(n) ? n : 0;
+  }
+  function hasNum(v) { return String(v || '').replace(/,/g, '').trim() !== '' && isFinite(parseFloat(String(v).replace(/,/g, ''))); }
+  function pkr(n) {
+    var r = Math.round(n * 100) / 100;
+    var d = Math.abs(r - Math.round(r)) < 0.005 ? 0 : 2;
+    return 'Rs ' + r.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+  function usd(n) {
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function kgText(n) { return (Math.round(n * 1000) / 1000) + ' kg'; }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  var toastTimer;
+  function toast(msg) {
+    var t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+  function saveDraft() { store(KEY_DRAFT, draft); }
+  function saveSettings() { store(KEY_SETTINGS, settings); }
+
+  /* ---------------- Calculation ---------------- */
+  function calculate(d, s) {
+    var p = s.products[d.product];
+    var f = s.fabrics[d.fabric];
+    var lines = [];
+    function add(group, label, amount) { lines.push({ group: group, label: label, amount: amount }); }
+
+    add('Making', 'Fabric (' + kgText(p.kg) + ' × ' + pkr(f.price) + ')', p.kg * f.price);
+    add('Making', 'Cutting', num(p.cutting));
+    add('Making', 'Stitching', num(p.stitching));
+    add('Making', 'Pressing & packing labour', num(p.pressing));
+
+    var extrasNames = [];
+    Object.keys(s.extras).forEach(function (k) {
+      if (d.extras[k]) { add('Extras', s.extras[k].name, num(s.extras[k].price)); extrasNames.push(s.extras[k].name); }
+    });
+    if (d.rhinestone.on) { add('Extras', 'Rhinestones', num(d.rhinestone.price)); extrasNames.push('Rhinestones'); }
+    if (d.deco.on) { add('Extras', d.deco.kind, num(d.deco.price)); extrasNames.push(d.deco.kind); }
+
+    var trimNames = [];
+    Object.keys(s.trims).forEach(function (k) {
+      if (d.trims[k]) { add('Trims & packaging', s.trims[k].name, num(s.trims[k].per100) / 100); trimNames.push(s.trims[k].name); }
+    });
+
+    var weight = hasNum(d.shipWeight) ? num(d.shipWeight) : num(p.kg);
+    if (d.shipOn) add('Shipping', 'Shipping (' + kgText(weight) + ' × ' + pkr(num(s.shipPerKg)) + ')', weight * num(s.shipPerKg));
+
+    var qty = Math.floor(num(d.qty));
+    var oneOff = num(d.oneOff);
+    if (oneOff > 0) {
+      add('One-off costs', qty > 0 ? ('One-off ' + pkr(oneOff) + ' ÷ ' + qty + ' pcs') : 'One-off costs (enter quantity)', qty > 0 ? oneOff / qty : 0);
+    }
+
+    var costPiece = lines.reduce(function (a, l) { return a + l.amount; }, 0);
+    var marginPct = num(d.margin);
+    var quotePiece = costPiece * (1 + marginPct / 100);
+    var profitPiece = quotePiece - costPiece;
+    var rate = num(d.usdRate);
+
+    return {
+      lines: lines,
+      productName: p.name,
+      fabricName: f.name,
+      extrasNames: extrasNames,
+      trimNames: trimNames,
+      weight: weight,
+      qty: qty,
+      marginPct: marginPct,
+      hasMargin: hasNum(d.margin),
+      costPiece: costPiece,
+      costOrder: costPiece * qty,
+      quotePiece: quotePiece,
+      quoteOrder: quotePiece * qty,
+      profitPiece: profitPiece,
+      profitOrder: profitPiece * qty,
+      rate: rate
+    };
+  }
+
+  /* ---------------- Render calculator ---------------- */
+  function renderProducts() {
+    var html = '';
+    Object.keys(settings.products).forEach(function (k) {
+      var p = settings.products[k];
+      html += '<button class="choice' + (draft.product === k ? ' selected' : '') + '" data-product="' + k + '">' +
+        '<b>' + esc(p.name) + '</b><span>' + esc(p.note ? p.note + ' · ' : '') + kgText(p.kg) + ' fabric</span></button>';
+    });
+    $('productChoices').innerHTML = html;
+  }
+  function renderFabrics() {
+    var html = '';
+    Object.keys(settings.fabrics).forEach(function (k) {
+      var f = settings.fabrics[k];
+      html += '<button class="choice' + (draft.fabric === k ? ' selected' : '') + '" data-fabric="' + k + '">' +
+        '<b>' + esc(f.name) + (f.note ? ' <span>(' + esc(f.note) + ')</span>' : '') + '</b><span>' + pkr(num(f.price)) + ' per kg</span></button>';
+    });
+    $('fabricChoices').innerHTML = html;
+  }
+  function renderExtras() {
+    var html = '';
+    Object.keys(settings.extras).forEach(function (k) {
+      var e = settings.extras[k];
+      html += '<label class="tick"><input type="checkbox" data-extra="' + k + '"' + (draft.extras[k] ? ' checked' : '') + '>' +
+        '<span class="label">' + esc(e.name) + '</span><span class="price">' + pkr(num(e.price)) + '/pc</span></label>';
+    });
+    // Rhinestones
+    html += '<label class="tick"><input type="checkbox" id="rhOn"' + (draft.rhinestone.on ? ' checked' : '') + '>' +
+      '<span class="label">Rhinestones</span><span class="price">you type price</span></label>' +
+      '<div class="sub' + (draft.rhinestone.on ? ' show' : '') + '" id="rhSub">' +
+      '<label class="field" style="margin:0"><span>Rhinestones price per piece (PKR)</span>' +
+      '<input id="rhPrice" type="text" inputmode="decimal" placeholder="e.g. 250" value="' + esc(draft.rhinestone.price) + '"></label></div>';
+    // Printing / embroidery
+    html += '<label class="tick"><input type="checkbox" id="decoOn"' + (draft.deco.on ? ' checked' : '') + '>' +
+      '<span class="label">Printing / Embroidery</span><span class="price">you type price</span></label>' +
+      '<div class="sub' + (draft.deco.on ? ' show' : '') + '" id="decoSub">' +
+      '<div class="seg"><button type="button" data-deco="Printing" class="' + (draft.deco.kind === 'Printing' ? 'selected' : '') + '">Printing</button>' +
+      '<button type="button" data-deco="Embroidery" class="' + (draft.deco.kind === 'Embroidery' ? 'selected' : '') + '">Embroidery</button></div>' +
+      '<label class="field" style="margin:0"><span id="decoLabel">' + esc(draft.deco.kind) + ' price per piece (PKR)</span>' +
+      '<input id="decoPrice" type="text" inputmode="decimal" placeholder="e.g. 200" value="' + esc(draft.deco.price) + '"></label></div>';
+    $('extrasList').innerHTML = html;
+  }
+  function renderTrims() {
+    var html = '';
+    Object.keys(settings.trims).forEach(function (k) {
+      var t = settings.trims[k];
+      html += '<label class="tick"><input type="checkbox" data-trim="' + k + '"' + (draft.trims[k] ? ' checked' : '') + '>' +
+        '<span class="label">' + esc(t.name) + '</span><span class="price">' + pkr(num(t.per100) / 100) + '/pc</span></label>';
+    });
+    $('trimsList').innerHTML = html;
+  }
+  function renderInputs() {
+    var p = settings.products[draft.product];
+    $('shipWeight').value = draft.shipWeight;
+    $('shipWeight').placeholder = String(p.kg) + ' (default)';
+    $('shipHint').textContent = 'Leave empty to use the fabric weight (' + kgText(p.kg) + '). Rate: ' + pkr(num(settings.shipPerKg)) + ' per kg.';
+    $('shipOn').checked = !!draft.shipOn;
+    $('qty').value = draft.qty;
+    $('oneOff').value = draft.oneOff;
+    $('margin').value = draft.margin;
+    $('usdRate').value = draft.usdRate;
+    $('clientName').value = draft.client;
+  }
+
+  function renderResult() {
+    var r = calculate(draft, settings);
+    var html = '<table class="breakdown">';
+    var lastGroup = '';
+    r.lines.forEach(function (l) {
+      if (l.group !== lastGroup) { html += '<tr class="group"><td colspan="2">' + esc(l.group) + '</td></tr>'; lastGroup = l.group; }
+      html += '<tr><td>' + esc(l.label) + '</td><td>' + pkr(l.amount) + '</td></tr>';
+    });
+    html += '<tr class="total"><td>Total cost per piece</td><td>' + pkr(r.costPiece) + '</td></tr></table>';
+
+    var showUsd = r.rate > 0;
+    function box(cls, title, pk, extra) {
+      return '<div class="big ' + cls + '"><small>' + title + '</small><strong>' + pk + '</strong>' + (extra ? '<em>' + extra + '</em>' : '') + '</div>';
+    }
+    html += '<div class="big-grid">';
+    html += box('', 'Cost per piece', pkr(r.costPiece), showUsd ? usd(r.costPiece / r.rate) : '');
+    html += box('', 'Cost for whole order', r.qty > 0 ? pkr(r.costOrder) : '–', r.qty > 0 && showUsd ? usd(r.costOrder / r.rate) : (r.qty > 0 ? '' : 'enter quantity'));
+    html += box('quote', 'Quote per piece', pkr(r.quotePiece), showUsd ? usd(r.quotePiece / r.rate) : '');
+    html += box('quote', 'Quote for whole order', r.qty > 0 ? pkr(r.quoteOrder) : '–', r.qty > 0 && showUsd ? usd(r.quoteOrder / r.rate) : (r.qty > 0 ? '' : 'enter quantity'));
+    html += box('profit', 'My profit per piece', pkr(r.profitPiece), showUsd ? usd(r.profitPiece / r.rate) : '');
+    html += box('profit', 'My profit whole order', r.qty > 0 ? pkr(r.profitOrder) : '–', r.qty > 0 && showUsd ? usd(r.profitOrder / r.rate) : '');
+    html += '</div>';
+
+    var warns = [];
+    if (!r.hasMargin) warns.push('Profit % is empty – the quote equals your cost.');
+    if (r.qty <= 0) warns.push('Enter the number of pieces to see order totals.');
+    if (draft.rhinestone.on && !hasNum(draft.rhinestone.price)) warns.push('Rhinestones is ticked but has no price.');
+    if (draft.deco.on && !hasNum(draft.deco.price)) warns.push(draft.deco.kind + ' is ticked but has no price.');
+    warns.forEach(function (w) { html += '<p class="warn">⚠️ ' + esc(w) + '</p>'; });
+
+    $('resultBox').innerHTML = html;
+
+    // sticky bar
+    $('stickyPiece').textContent = pkr(r.quotePiece) + (showUsd ? ' · ' + usd(r.quotePiece / r.rate) : '');
+    $('stickyOrder').textContent = r.qty > 0 ? pkr(r.quoteOrder) : '–';
+    updateSticky();
+    return r;
+  }
+
+  function renderCalc() {
+    renderProducts(); renderFabrics(); renderExtras(); renderTrims(); renderInputs(); renderResult();
+  }
+
+  /* ---------------- Share message ---------------- */
+  function buildMessage(d, r) {
+    var lines = [];
+    if (settings.bizName) lines.push('*' + settings.bizName + '*');
+    lines.push('*QUOTATION*' + (d.client ? ' – ' + d.client : ''));
+    lines.push('Date: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }));
+    lines.push('');
+    lines.push('Product: ' + r.productName);
+    lines.push('Fabric: ' + r.fabricName);
+    if (r.extrasNames.length) lines.push('Extras: ' + r.extrasNames.join(', '));
+    if (r.trimNames.length) lines.push('Includes: ' + r.trimNames.join(', '));
+    lines.push('Shipping: ' + (d.shipOn ? 'Included' : 'Not included'));
+    if (r.qty > 0) lines.push('Quantity: ' + r.qty.toLocaleString('en-US') + ' pcs');
+    lines.push('');
+    var showUsd = r.rate > 0;
+    lines.push('Price per piece: ' + (showUsd ? usd(r.quotePiece / r.rate) + ' (' + pkr(r.quotePiece) + ')' : pkr(r.quotePiece)));
+    if (r.qty > 0) lines.push('*Total: ' + (showUsd ? usd(r.quoteOrder / r.rate) + ' (' + pkr(r.quoteOrder) + ')' : pkr(r.quoteOrder)) + '*');
+    lines.push('');
+    lines.push('Thank you for your interest!');
+    return lines.join('\n');
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+      try { document.execCommand('copy') ? resolve() : reject(); } catch (e) { reject(e); }
+      document.body.removeChild(ta);
+    });
+  }
+  function shareText(text) {
+    if (navigator.share) {
+      navigator.share({ text: text }).catch(function (e) {
+        if (e && e.name !== 'AbortError') copyText(text).then(function () { toast('Copied – paste it in WhatsApp or Instagram'); });
+      });
+    } else {
+      copyText(text).then(function () { toast('Copied – paste it in WhatsApp or Instagram'); }, function () { toast('Could not copy'); });
+    }
+  }
+
+  /* ---------------- Saved quotes ---------------- */
+  function renderSaved() {
+    var q = ($('savedSearch').value || '').toLowerCase().trim();
+    var list = quotes.filter(function (x) { return !q || (x.draft.client || '').toLowerCase().indexOf(q) !== -1; });
+    if (!quotes.length) { $('savedList').innerHTML = '<div class="empty">No saved quotes yet.<br>Make a quote and tap “Save this quote”.</div>'; return; }
+    if (!list.length) { $('savedList').innerHTML = '<div class="empty">No quotes match that name.</div>'; return; }
+    var html = '';
+    list.forEach(function (x) {
+      var r = x.result;
+      var date = new Date(x.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      html += '<div class="saved-item"><div class="top"><div><div class="name">' + esc(x.draft.client || 'No name') + '</div>' +
+        '<div class="meta">' + esc(r.productName) + ' · ' + esc(r.fabricName) + (r.qty > 0 ? ' · ' + r.qty + ' pcs' : '') + '<br>' + date + '</div></div>' +
+        '<div style="text-align:right;white-space:nowrap"><div style="font-weight:700">' + pkr(r.quotePiece) + '<span class="meta">/pc</span></div>' +
+        (r.qty > 0 ? '<div class="meta">' + pkr(r.quoteOrder) + ' total</div>' : '') +
+        (r.rate > 0 ? '<div class="meta">' + usd(r.quotePiece / r.rate) + '/pc</div>' : '') + '</div></div>' +
+        '<div class="actions">' +
+        '<button class="btn small secondary" data-open="' + x.id + '">Open</button>' +
+        '<button class="btn small secondary" data-share="' + x.id + '">Share</button>' +
+        '<button class="btn small danger" data-del="' + x.id + '">Delete</button></div></div>';
+    });
+    $('savedList').innerHTML = html;
+  }
+  function findQuote(id) { for (var i = 0; i < quotes.length; i++) if (quotes[i].id === id) return quotes[i]; return null; }
+
+  /* ---------------- Settings page ---------------- */
+  function inputHTML(path, value, label, mode) {
+    return '<label class="field"><span>' + esc(label) + '</span><input type="text" inputmode="' + (mode || 'decimal') + '" data-set="' + path + '" value="' + esc(value) + '"></label>';
+  }
+  function renderSettings() {
+    $('setBizName').value = settings.bizName || '';
+    var html = '';
+    Object.keys(settings.products).forEach(function (k) {
+      var p = settings.products[k];
+      html += '<div class="set-product"><h3>' + esc(p.name) + (p.note ? ' <span class="hint">(' + esc(p.note) + ')</span>' : '') + '</h3><div class="grid4">' +
+        inputHTML('products.' + k + '.kg', p.kg, 'Fabric used (kg)') +
+        inputHTML('products.' + k + '.cutting', p.cutting, 'Cutting') +
+        inputHTML('products.' + k + '.stitching', p.stitching, 'Stitching') +
+        inputHTML('products.' + k + '.pressing', p.pressing, 'Pressing & packing') +
+        '</div></div>';
+    });
+    $('setProducts').innerHTML = html;
+
+    html = '';
+    Object.keys(settings.fabrics).forEach(function (k) {
+      var f = settings.fabrics[k];
+      html += inputHTML('fabrics.' + k + '.price', f.price, f.name + (f.note ? ' (' + f.note + ')' : ''));
+    });
+    $('setFabrics').innerHTML = html;
+
+    html = '';
+    Object.keys(settings.extras).forEach(function (k) {
+      html += inputHTML('extras.' + k + '.price', settings.extras[k].price, settings.extras[k].name);
+    });
+    $('setExtras').innerHTML = html;
+
+    html = '';
+    Object.keys(settings.trims).forEach(function (k) {
+      var t = settings.trims[k];
+      html += inputHTML('trims.' + k + '.per100', t.per100, t.name + ' – price per 100 (= ' + pkr(num(t.per100) / 100) + ' per piece)');
+    });
+    $('setTrims').innerHTML = html;
+    $('setShip').value = settings.shipPerKg;
+  }
+
+  /* ---------------- Navigation ---------------- */
+  var currentPage = 'calc';
+  function showPage(name) {
+    currentPage = name;
+    document.querySelectorAll('.page').forEach(function (p) { p.classList.remove('active'); });
+    $('page-' + name).classList.add('active');
+    document.querySelectorAll('nav.tabs button').forEach(function (b) { b.classList.toggle('active', b.dataset.page === name); });
+    var titles = { calc: ['Quote Calculator', 'Make a price for your client in PKR (and USD)'], saved: ['Saved Quotes', 'Your past quotes, newest first'], settings: ['Settings', 'Your default prices'] };
+    $('headerTitle').textContent = titles[name][0];
+    $('headerSub').textContent = titles[name][1];
+    if (name === 'saved') renderSaved();
+    if (name === 'settings') renderSettings();
+    if (name === 'calc') renderCalc();
+    updateSticky();
+    window.scrollTo(0, 0);
+  }
+
+  // Show the small "quote" bar at the bottom while the result box is not on screen
+  var resultVisible = false;
+  function updateSticky() {
+    var show = currentPage === 'calc' && !resultVisible;
+    $('stickyTotal').style.display = show ? 'flex' : 'none';
+    document.body.classList.toggle('has-sticky', show);
+  }
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (entries) {
+      resultVisible = entries[0].isIntersecting; updateSticky();
+    }).observe($('resultCard'));
+  }
+  $('stickyTotal').addEventListener('click', function () { $('resultCard').scrollIntoView({ behavior: 'smooth' }); });
+
+  /* ---------------- Events: calculator ---------------- */
+  document.querySelector('nav.tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (b) showPage(b.dataset.page);
+  });
+
+  $('productChoices').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-product]'); if (!b) return;
+    draft.product = b.dataset.product;
+    draft.shipWeight = ''; // reset to new product's default weight
+    saveDraft(); renderProducts(); renderInputs(); renderResult();
+  });
+  $('fabricChoices').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-fabric]'); if (!b) return;
+    draft.fabric = b.dataset.fabric; saveDraft(); renderFabrics(); renderResult();
+  });
+  $('extrasList').addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.dataset.extra) draft.extras[t.dataset.extra] = t.checked;
+    if (t.id === 'rhOn') { draft.rhinestone.on = t.checked; $('rhSub').classList.toggle('show', t.checked); if (t.checked) $('rhPrice').focus(); }
+    if (t.id === 'decoOn') { draft.deco.on = t.checked; $('decoSub').classList.toggle('show', t.checked); }
+    saveDraft(); renderResult();
+  });
+  $('extrasList').addEventListener('input', function (e) {
+    if (e.target.id === 'rhPrice') draft.rhinestone.price = e.target.value;
+    if (e.target.id === 'decoPrice') draft.deco.price = e.target.value;
+    saveDraft(); renderResult();
+  });
+  $('extrasList').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-deco]'); if (!b) return;
+    draft.deco.kind = b.dataset.deco;
+    document.querySelectorAll('[data-deco]').forEach(function (x) { x.classList.toggle('selected', x === b); });
+    $('decoLabel').textContent = draft.deco.kind + ' price per piece (PKR)';
+    saveDraft(); renderResult();
+  });
+  $('trimsList').addEventListener('change', function (e) {
+    if (e.target.dataset.trim) { draft.trims[e.target.dataset.trim] = e.target.checked; saveDraft(); renderResult(); }
+  });
+  var fieldMap = { shipWeight: 'shipWeight', qty: 'qty', oneOff: 'oneOff', margin: 'margin', usdRate: 'usdRate', clientName: 'client' };
+  Object.keys(fieldMap).forEach(function (id) {
+    $(id).addEventListener('input', function () { draft[fieldMap[id]] = this.value; saveDraft(); if (id !== 'clientName') renderResult(); });
+  });
+  $('shipOn').addEventListener('change', function () { draft.shipOn = this.checked; saveDraft(); renderResult(); });
+
+  $('saveBtn').addEventListener('click', function () {
+    var name = ($('clientName').value || '').trim();
+    if (!name) { toast('Please type the client name first'); $('clientName').focus(); return; }
+    draft.client = name;
+    var r = calculate(draft, settings);
+    quotes.unshift({ id: String(Date.now()), date: new Date().toISOString(), draft: clone(draft), result: r });
+    store(KEY_QUOTES, quotes);
+    toast('Quote saved for ' + name);
+  });
+  $('shareBtn').addEventListener('click', function () { shareText(buildMessage(draft, calculate(draft, settings))); });
+  $('copyBtn').addEventListener('click', function () {
+    copyText(buildMessage(draft, calculate(draft, settings))).then(function () { toast('Copied – paste it in WhatsApp or Instagram'); }, function () { toast('Could not copy'); });
+  });
+  $('resetBtn').addEventListener('click', function () {
+    if (!confirm('Clear this quote and start a new one?')) return;
+    var keepRate = draft.usdRate;
+    draft = blankDraft(); draft.usdRate = keepRate; saveDraft(); renderCalc(); window.scrollTo(0, 0);
+    toast('New quote started');
+  });
+
+  /* ---------------- Events: saved ---------------- */
+  $('savedSearch').addEventListener('input', renderSaved);
+  $('savedList').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.open) {
+      var q = findQuote(b.dataset.open); if (!q) return;
+      draft = mergeDeep(blankDraft(), q.draft);
+      if (!settings.products[draft.product]) draft.product = 'tshirt';
+      if (!settings.fabrics[draft.fabric]) draft.fabric = Object.keys(settings.fabrics)[0];
+      saveDraft(); showPage('calc');
+      toast('Opened – using today’s prices');
+    } else if (b.dataset.share) {
+      var q2 = findQuote(b.dataset.share); if (!q2) return;
+      shareText(buildMessage(q2.draft, q2.result));
+    } else if (b.dataset.del) {
+      var q3 = findQuote(b.dataset.del); if (!q3) return;
+      if (!confirm('Delete the quote for ' + (q3.draft.client || 'this client') + '?')) return;
+      quotes = quotes.filter(function (x) { return x.id !== b.dataset.del; });
+      store(KEY_QUOTES, quotes); renderSaved(); toast('Quote deleted');
+    }
+  });
+
+  /* ---------------- Events: settings ---------------- */
+  $('page-settings').addEventListener('input', function (e) {
+    var t = e.target;
+    if (t.id === 'setBizName') { settings.bizName = t.value; saveSettings(); return; }
+    if (t.id === 'setShip') { settings.shipPerKg = num(t.value); saveSettings(); return; }
+    if (!t.dataset.set) return;
+    var parts = t.dataset.set.split('.');
+    var obj = settings;
+    for (var i = 0; i < parts.length - 1; i++) obj = obj[parts[i]];
+    obj[parts[parts.length - 1]] = num(t.value);
+    saveSettings();
+  });
+  // Re-render settings when leaving a field so "per piece" helper text refreshes
+  $('page-settings').addEventListener('change', function (e) { if (e.target.dataset.set && e.target.dataset.set.indexOf('trims.') === 0) renderSettings(); });
+
+  $('resetSettingsBtn').addEventListener('click', function () {
+    if (!confirm('Put ALL prices back to the original numbers? Your saved quotes will not be deleted.')) return;
+    var biz = settings.bizName;
+    settings = clone(DEFAULTS); settings.bizName = biz; saveSettings(); renderSettings(); toast('Prices reset');
+  });
+  $('exportBtn').addEventListener('click', function () {
+    var data = JSON.stringify({ app: 'quote-calculator', version: 1, settings: settings, quotes: quotes }, null, 2);
+    var blob = new Blob([data], { type: 'application/json' });
+    var name = 'quote-calculator-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    var file;
+    try { file = new File([blob], name, { type: 'application/json' }); } catch (e) {}
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'Quote calculator backup' }).catch(function () {});
+      return;
+    }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    toast('Backup file saved');
+  });
+  $('importBtn').addEventListener('click', function () { $('importFile').click(); });
+  $('importFile').addEventListener('change', function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var data = JSON.parse(reader.result);
+        if (!data || data.app !== 'quote-calculator') throw new Error('bad');
+        if (!confirm('Replace your current prices and saved quotes with this backup?')) return;
+        settings = mergeDeep(DEFAULTS, data.settings || {});
+        quotes = Array.isArray(data.quotes) ? data.quotes : [];
+        saveSettings(); store(KEY_QUOTES, quotes); renderSettings(); toast('Backup restored');
+      } catch (e) { toast('That file is not a valid backup'); }
+    };
+    reader.readAsText(f);
+    this.value = '';
+  });
+
+  /* ---------------- Start ---------------- */
+  renderCalc();
+
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+  }
+})();
+</script>
+</body>
+</html>
