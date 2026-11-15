@@ -45,7 +45,8 @@ Go to **Settings → Backup** now and then to save a backup file. Use **Restore*
 
 ## How the price is worked out
 
-- **Fabric** = fabric used (kg) × fabric price per kg
+- **Fabric** = fabric used (kg) × fabric price per kg. Hoodie, trouser and suit can be 350 GSM or 450 GSM:
+  450 GSM uses more fabric (default hoodie 1.2 kg, trouser 1.2 kg, suit 2.4 kg), and shipping weight follows it.
 - **Cost per piece** = fabric + cutting + stitching + pressing/packing + ticked extras + ticked trims + shipping + (one-off costs ÷ quantity)
 - **Shipping** = shipping weight per piece × shipping price per kg (the weight starts as the fabric weight)
 - **Quote per piece** = cost per piece + your profit. Profit can be typed as:
