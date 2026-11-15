@@ -258,14 +258,26 @@
       </label>
       <p class="hint" style="margin:-6px 0 12px">This amount is shared equally across all pieces.</p>
       <label class="field">
-        <span>Profit %</span>
-        <input id="margin" type="text" inputmode="decimal" placeholder="e.g. 25">
-      </label>
-      <p class="hint" style="margin:-6px 0 12px">Added on top of your cost. Example: cost 1,000 + 25% = quote 1,250.</p>
-      <label class="field">
-        <span>Dollar rate (PKR for 1 USD) – optional</span>
+        <span id="usdRateLabel">Dollar rate (PKR for 1 USD) – optional</span>
         <input id="usdRate" type="text" inputmode="decimal" placeholder="e.g. 280">
       </label>
+      <label class="field" style="margin-bottom:6px"><span>My profit</span></label>
+      <div class="seg" id="profitMode">
+        <button type="button" data-mode="pct">Profit %</button>
+        <button type="button" data-mode="usd">$ per piece</button>
+      </div>
+      <div id="pctBox">
+        <label class="field">
+          <input id="margin" type="text" inputmode="decimal" placeholder="e.g. 25" aria-label="Profit percent">
+        </label>
+        <p class="hint" style="margin:-6px 0 12px">Added on top of your cost. Example: cost 1,000 + 25% = quote 1,250.</p>
+      </div>
+      <div id="usdBox">
+        <label class="field">
+          <input id="marginUsd" type="text" inputmode="decimal" placeholder="e.g. 3 (dollars per piece)" aria-label="Profit in dollars per piece">
+        </label>
+        <p class="hint" style="margin:-6px 0 12px">Dollars added on top of your cost for each piece. Example: cost $10 + $3 profit = quote $13. Needs the dollar rate above.</p>
+      </div>
     </div>
 
     <div class="card" id="resultCard">
@@ -444,6 +456,8 @@
       qty: '',
       oneOff: '',
       margin: '',
+      marginUsd: '',
+      profitMode: settings.profitMode || 'pct',
       usdRate: '',
       client: ''
     };
@@ -516,10 +530,19 @@
     }
 
     var costPiece = lines.reduce(function (a, l) { return a + l.amount; }, 0);
-    var marginPct = num(d.margin);
-    var quotePiece = costPiece * (1 + marginPct / 100);
-    var profitPiece = quotePiece - costPiece;
     var rate = num(d.usdRate);
+    var mode = d.profitMode === 'usd' ? 'usd' : 'pct';
+    var profitPiece, marginPct, hasMargin;
+    if (mode === 'usd') {
+      hasMargin = hasNum(d.marginUsd);
+      profitPiece = rate > 0 ? num(d.marginUsd) * rate : 0;
+      marginPct = costPiece > 0 ? profitPiece / costPiece * 100 : 0;
+    } else {
+      hasMargin = hasNum(d.margin);
+      marginPct = num(d.margin);
+      profitPiece = costPiece * marginPct / 100;
+    }
+    var quotePiece = costPiece + profitPiece;
 
     return {
       lines: lines,
@@ -530,7 +553,9 @@
       weight: weight,
       qty: qty,
       marginPct: marginPct,
-      hasMargin: hasNum(d.margin),
+      profitMode: mode,
+      marginUsd: num(d.marginUsd),
+      hasMargin: hasMargin,
       costPiece: costPiece,
       costOrder: costPiece * qty,
       quotePiece: quotePiece,
@@ -601,8 +626,18 @@
     $('qty').value = draft.qty;
     $('oneOff').value = draft.oneOff;
     $('margin').value = draft.margin;
+    $('marginUsd').value = draft.marginUsd;
+    renderProfitMode();
     $('usdRate').value = draft.usdRate;
     $('clientName').value = draft.client;
+  }
+
+  function renderProfitMode() {
+    var usdMode = draft.profitMode === 'usd';
+    document.querySelectorAll('#profitMode [data-mode]').forEach(function (b) { b.classList.toggle('selected', b.dataset.mode === draft.profitMode); });
+    $('pctBox').style.display = usdMode ? 'none' : 'block';
+    $('usdBox').style.display = usdMode ? 'block' : 'none';
+    $('usdRateLabel').textContent = usdMode ? 'Dollar rate (PKR for 1 USD) – needed for $ profit' : 'Dollar rate (PKR for 1 USD) – optional';
   }
 
   function renderResult() {
@@ -627,9 +662,13 @@
     html += box('profit', 'My profit per piece', pkr(r.profitPiece), showUsd ? usd(r.profitPiece / r.rate) : '');
     html += box('profit', 'My profit whole order', r.qty > 0 ? pkr(r.profitOrder) : '–', r.qty > 0 && showUsd ? usd(r.profitOrder / r.rate) : '');
     html += '</div>';
+    if (r.hasMargin && r.profitPiece > 0) {
+      html += '<p class="hint" style="margin-top:10px">Profit: ' + (r.profitMode === 'usd' ? usd(r.marginUsd) + ' per piece = ' + (Math.round(r.marginPct * 10) / 10) + '% of cost' : (Math.round(r.marginPct * 10) / 10) + '% of cost' + (showUsd ? ' = ' + usd(r.profitPiece / r.rate) + ' per piece' : '')) + '</p>';
+    }
 
     var warns = [];
-    if (!r.hasMargin) warns.push('Profit % is empty – the quote equals your cost.');
+    if (!r.hasMargin) warns.push((r.profitMode === 'usd' ? 'Profit $' : 'Profit %') + ' is empty – the quote equals your cost.');
+    if (r.profitMode === 'usd' && r.hasMargin && !(r.rate > 0)) warns.push('Type the dollar rate so your $ profit can be added.');
     if (r.qty <= 0) warns.push('Enter the number of pieces to see order totals.');
     if (draft.rhinestone.on && !hasNum(draft.rhinestone.price)) warns.push('Rhinestones is ticked but has no price.');
     if (draft.deco.on && !hasNum(draft.deco.price)) warns.push(draft.deco.kind + ' is ticked but has no price.');
@@ -824,11 +863,18 @@
   $('trimsList').addEventListener('change', function (e) {
     if (e.target.dataset.trim) { draft.trims[e.target.dataset.trim] = e.target.checked; saveDraft(); renderResult(); }
   });
-  var fieldMap = { shipWeight: 'shipWeight', qty: 'qty', oneOff: 'oneOff', margin: 'margin', usdRate: 'usdRate', clientName: 'client' };
+  var fieldMap = { shipWeight: 'shipWeight', qty: 'qty', oneOff: 'oneOff', margin: 'margin', marginUsd: 'marginUsd', usdRate: 'usdRate', clientName: 'client' };
   Object.keys(fieldMap).forEach(function (id) {
     $(id).addEventListener('input', function () { draft[fieldMap[id]] = this.value; saveDraft(); if (id !== 'clientName') renderResult(); });
   });
   $('shipOn').addEventListener('change', function () { draft.shipOn = this.checked; saveDraft(); renderResult(); });
+  $('profitMode').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-mode]'); if (!b) return;
+    draft.profitMode = b.dataset.mode;
+    settings.profitMode = b.dataset.mode; // remember your choice for next time
+    saveDraft(); saveSettings(); renderProfitMode(); renderResult();
+    (b.dataset.mode === 'usd' ? $('marginUsd') : $('margin')).focus();
+  });
 
   $('saveBtn').addEventListener('click', function () {
     var name = ($('clientName').value || '').trim();

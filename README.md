@@ -48,5 +48,7 @@ Go to **Settings → Backup** now and then to save a backup file. Use **Restore*
 - **Fabric** = fabric used (kg) × fabric price per kg
 - **Cost per piece** = fabric + cutting + stitching + pressing/packing + ticked extras + ticked trims + shipping + (one-off costs ÷ quantity)
 - **Shipping** = shipping weight per piece × shipping price per kg (the weight starts as the fabric weight)
-- **Quote per piece** = cost per piece + profit % of the cost (for example, cost 1,000 + 25% = 1,250)
+- **Quote per piece** = cost per piece + your profit. Profit can be typed as:
+  - **Profit %** of the cost (for example, cost 1,000 + 25% = 1,250), or
+  - **$ per piece** (for example, $3 profit at a rate of 280 = Rs 840 added to each piece). This needs the dollar rate.
 - **USD** = PKR amount ÷ dollar rate
