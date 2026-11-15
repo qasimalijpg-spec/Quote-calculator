@@ -221,6 +221,10 @@
     <div class="card">
       <h2><span class="step">2</span> Choose the fabric</h2>
       <div class="choices one" id="fabricChoices"></div>
+      <div id="gsmBox" style="margin-top:14px">
+        <label class="field" style="margin-bottom:6px"><span>Fabric weight (GSM)</span></label>
+        <div class="seg" id="gsmChoices" style="margin-bottom:0"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -394,10 +398,10 @@
   var DEFAULTS = {
     bizName: '',
     products: {
-      tshirt:  { name: 'T-shirt', note: 'Cotton jersey', kg: 0.5, cutting: 30,  stitching: 180, pressing: 50 },
-      hoodie:  { name: 'Hoodie',  note: '',              kg: 1,   cutting: 50,  stitching: 300, pressing: 50 },
-      trouser: { name: 'Trouser', note: '',              kg: 1,   cutting: 50,  stitching: 220, pressing: 50 },
-      suit:    { name: 'Suit',    note: 'Hoodie + trouser', kg: 2, cutting: 100, stitching: 520, pressing: 100 }
+      tshirt:  { name: 'T-shirt', note: 'Cotton jersey', kg: 0.5, kg450: null, cutting: 30,  stitching: 180, pressing: 50 },
+      hoodie:  { name: 'Hoodie',  note: '',              kg: 1,   kg450: 1.2, cutting: 50,  stitching: 300, pressing: 50 },
+      trouser: { name: 'Trouser', note: '',              kg: 1,   kg450: 1.2, cutting: 50,  stitching: 220, pressing: 50 },
+      suit:    { name: 'Suit',    note: 'Hoodie + trouser', kg: 2, kg450: 2.4, cutting: 100, stitching: 520, pressing: 100 }
     },
     fabrics: {
       f6535:   { name: '65/35', note: 'Standard', price: 1250 },
@@ -452,6 +456,7 @@
       deco: { on: false, kind: 'Printing', price: '' },
       trims: { labels: true, tags: true, poly: true },
       shipOn: true,
+      gsm: '350',
       shipWeight: '',
       qty: '',
       oneOff: '',
@@ -482,6 +487,9 @@
   function usd(n) {
     return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
+  function hasGsm(p) { return p.kg450 !== null && p.kg450 !== undefined && p.kg450 !== ''; }
+  function gsmOf(d, p) { return hasGsm(p) && d.gsm === '450' ? '450' : '350'; }
+  function fabricKg(d, p) { return gsmOf(d, p) === '450' ? num(p.kg450) : num(p.kg); }
   function kgText(n) { return (Math.round(n * 1000) / 1000) + ' kg'; }
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -503,7 +511,9 @@
     var lines = [];
     function add(group, label, amount) { lines.push({ group: group, label: label, amount: amount }); }
 
-    add('Making', 'Fabric (' + kgText(p.kg) + ' × ' + pkr(f.price) + ')', p.kg * f.price);
+    var kg = fabricKg(d, p);
+    var gsmLabel = hasGsm(p) ? gsmOf(d, p) + ' GSM' : '';
+    add('Making', 'Fabric' + (gsmLabel ? ' ' + gsmLabel : '') + ' (' + kgText(kg) + ' × ' + pkr(f.price) + ')', kg * f.price);
     add('Making', 'Cutting', num(p.cutting));
     add('Making', 'Stitching', num(p.stitching));
     add('Making', 'Pressing & packing labour', num(p.pressing));
@@ -520,7 +530,7 @@
       if (d.trims[k]) { add('Trims & packaging', s.trims[k].name, num(s.trims[k].per100) / 100); trimNames.push(s.trims[k].name); }
     });
 
-    var weight = hasNum(d.shipWeight) ? num(d.shipWeight) : num(p.kg);
+    var weight = hasNum(d.shipWeight) ? num(d.shipWeight) : kg;
     if (d.shipOn) add('Shipping', 'Shipping (' + kgText(weight) + ' × ' + pkr(num(s.shipPerKg)) + ')', weight * num(s.shipPerKg));
 
     var qty = Math.floor(num(d.qty));
@@ -547,7 +557,7 @@
     return {
       lines: lines,
       productName: p.name,
-      fabricName: f.name,
+      fabricName: f.name + (gsmLabel ? ', ' + gsmLabel : ''),
       extrasNames: extrasNames,
       trimNames: trimNames,
       weight: weight,
@@ -572,9 +582,18 @@
     Object.keys(settings.products).forEach(function (k) {
       var p = settings.products[k];
       html += '<button class="choice' + (draft.product === k ? ' selected' : '') + '" data-product="' + k + '">' +
-        '<b>' + esc(p.name) + '</b><span>' + esc(p.note ? p.note + ' · ' : '') + kgText(p.kg) + ' fabric</span></button>';
+        '<b>' + esc(p.name) + '</b><span>' + esc(p.note ? p.note + ' · ' : '') + kgText(fabricKg(draft, p)) + ' fabric</span></button>';
     });
     $('productChoices').innerHTML = html;
+  }
+  function renderGsm() {
+    var p = settings.products[draft.product];
+    $('gsmBox').style.display = hasGsm(p) ? 'block' : 'none';
+    if (!hasGsm(p)) return;
+    var g = gsmOf(draft, p);
+    $('gsmChoices').innerHTML =
+      '<button type="button" data-gsm="350" class="' + (g === '350' ? 'selected' : '') + '">350 GSM<br><span class="hint">' + kgText(num(p.kg)) + '</span></button>' +
+      '<button type="button" data-gsm="450" class="' + (g === '450' ? 'selected' : '') + '">450 GSM<br><span class="hint">' + kgText(num(p.kg450)) + '</span></button>';
   }
   function renderFabrics() {
     var html = '';
@@ -620,8 +639,9 @@
   function renderInputs() {
     var p = settings.products[draft.product];
     $('shipWeight').value = draft.shipWeight;
-    $('shipWeight').placeholder = String(p.kg) + ' (default)';
-    $('shipHint').textContent = 'Leave empty to use the fabric weight (' + kgText(p.kg) + '). Rate: ' + pkr(num(settings.shipPerKg)) + ' per kg.';
+    var dk = fabricKg(draft, p);
+    $('shipWeight').placeholder = String(Math.round(dk * 1000) / 1000) + ' (default)';
+    $('shipHint').textContent = 'Leave empty to use the fabric weight (' + kgText(dk) + '). Rate: ' + pkr(num(settings.shipPerKg)) + ' per kg.';
     $('shipOn').checked = !!draft.shipOn;
     $('qty').value = draft.qty;
     $('oneOff').value = draft.oneOff;
@@ -684,7 +704,7 @@
   }
 
   function renderCalc() {
-    renderProducts(); renderFabrics(); renderExtras(); renderTrims(); renderInputs(); renderResult();
+    renderProducts(); renderFabrics(); renderGsm(); renderExtras(); renderTrims(); renderInputs(); renderResult();
   }
 
   /* ---------------- Share message ---------------- */
@@ -765,7 +785,9 @@
     Object.keys(settings.products).forEach(function (k) {
       var p = settings.products[k];
       html += '<div class="set-product"><h3>' + esc(p.name) + (p.note ? ' <span class="hint">(' + esc(p.note) + ')</span>' : '') + '</h3><div class="grid4">' +
-        inputHTML('products.' + k + '.kg', p.kg, 'Fabric used (kg)') +
+        (hasGsm(p)
+          ? inputHTML('products.' + k + '.kg', p.kg, 'Fabric kg – 350 GSM') + inputHTML('products.' + k + '.kg450', p.kg450, 'Fabric kg – 450 GSM')
+          : inputHTML('products.' + k + '.kg', p.kg, 'Fabric used (kg)')) +
         inputHTML('products.' + k + '.cutting', p.cutting, 'Cutting') +
         inputHTML('products.' + k + '.stitching', p.stitching, 'Stitching') +
         inputHTML('products.' + k + '.pressing', p.pressing, 'Pressing & packing') +
@@ -835,7 +857,13 @@
     var b = e.target.closest('[data-product]'); if (!b) return;
     draft.product = b.dataset.product;
     draft.shipWeight = ''; // reset to new product's default weight
-    saveDraft(); renderProducts(); renderInputs(); renderResult();
+    saveDraft(); renderProducts(); renderGsm(); renderInputs(); renderResult();
+  });
+  $('gsmChoices').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-gsm]'); if (!b) return;
+    draft.gsm = b.dataset.gsm;
+    draft.shipWeight = ''; // shipping weight follows the new fabric weight
+    saveDraft(); renderProducts(); renderGsm(); renderInputs(); renderResult();
   });
   $('fabricChoices').addEventListener('click', function (e) {
     var b = e.target.closest('[data-fabric]'); if (!b) return;
