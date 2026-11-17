@@ -123,6 +123,7 @@
     background: var(--card); color: var(--text); font: inherit; font-weight: 600; cursor: pointer;
   }
   .seg button.selected { border-color: var(--brand); background: var(--brand-soft); }
+  #gsmChoices button { padding: 11px 2px; white-space: nowrap; font-size: 15px; min-width: 0; }
 
   /* Buttons */
   .btn {
@@ -398,10 +399,10 @@
   var DEFAULTS = {
     bizName: '',
     products: {
-      tshirt:  { name: 'T-shirt', note: 'Cotton jersey', kg: 0.5, kg450: null, cutting: 30,  stitching: 180, pressing: 50 },
-      hoodie:  { name: 'Hoodie',  note: '',              kg: 1,   kg450: 1.2, cutting: 50,  stitching: 300, pressing: 50 },
-      trouser: { name: 'Trouser', note: '',              kg: 1,   kg450: 1.2, cutting: 50,  stitching: 220, pressing: 50 },
-      suit:    { name: 'Suit',    note: 'Hoodie + trouser', kg: 2, kg450: 2.4, cutting: 100, stitching: 520, pressing: 100 }
+      tshirt:  { name: 'T-shirt', note: 'Cotton jersey', kg: 0.5, kg450: null, kg500: null, cutting: 30,  stitching: 180, pressing: 50 },
+      hoodie:  { name: 'Hoodie',  note: '',              kg: 1,   kg450: 1.2, kg500: 1.5, cutting: 50,  stitching: 300, pressing: 50 },
+      trouser: { name: 'Trouser', note: '',              kg: 1,   kg450: 1.2, kg500: 1.5, cutting: 50,  stitching: 220, pressing: 50 },
+      suit:    { name: 'Suit',    note: 'Hoodie + trouser', kg: 2, kg450: 2.4, kg500: 3, cutting: 100, stitching: 520, pressing: 100 }
     },
     fabrics: {
       f6535:   { name: '65/35', note: 'Standard', price: 1250 },
@@ -488,8 +489,13 @@
     return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   function hasGsm(p) { return p.kg450 !== null && p.kg450 !== undefined && p.kg450 !== ''; }
-  function gsmOf(d, p) { return hasGsm(p) && d.gsm === '450' ? '450' : '350'; }
-  function fabricKg(d, p) { return gsmOf(d, p) === '450' ? num(p.kg450) : num(p.kg); }
+  var GSMS = [{ gsm: '350', key: 'kg' }, { gsm: '450', key: 'kg450' }, { gsm: '500', key: 'kg500' }];
+  function gsmOf(d, p) { return hasGsm(p) && (d.gsm === '450' || d.gsm === '500') ? d.gsm : '350'; }
+  function fabricKg(d, p) {
+    var g = gsmOf(d, p);
+    for (var i = 0; i < GSMS.length; i++) if (GSMS[i].gsm === g) return num(p[GSMS[i].key]);
+    return num(p.kg);
+  }
   function kgText(n) { return (Math.round(n * 1000) / 1000) + ' kg'; }
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -591,9 +597,9 @@
     $('gsmBox').style.display = hasGsm(p) ? 'block' : 'none';
     if (!hasGsm(p)) return;
     var g = gsmOf(draft, p);
-    $('gsmChoices').innerHTML =
-      '<button type="button" data-gsm="350" class="' + (g === '350' ? 'selected' : '') + '">350 GSM<br><span class="hint">' + kgText(num(p.kg)) + '</span></button>' +
-      '<button type="button" data-gsm="450" class="' + (g === '450' ? 'selected' : '') + '">450 GSM<br><span class="hint">' + kgText(num(p.kg450)) + '</span></button>';
+    $('gsmChoices').innerHTML = GSMS.map(function (o) {
+      return '<button type="button" data-gsm="' + o.gsm + '" class="' + (g === o.gsm ? 'selected' : '') + '">' + o.gsm + ' GSM<br><span class="hint">' + kgText(num(p[o.key])) + '</span></button>';
+    }).join('');
   }
   function renderFabrics() {
     var html = '';
@@ -786,7 +792,7 @@
       var p = settings.products[k];
       html += '<div class="set-product"><h3>' + esc(p.name) + (p.note ? ' <span class="hint">(' + esc(p.note) + ')</span>' : '') + '</h3><div class="grid4">' +
         (hasGsm(p)
-          ? inputHTML('products.' + k + '.kg', p.kg, 'Fabric kg – 350 GSM') + inputHTML('products.' + k + '.kg450', p.kg450, 'Fabric kg – 450 GSM')
+          ? GSMS.map(function (o) { return inputHTML('products.' + k + '.' + o.key, p[o.key], 'Fabric kg – ' + o.gsm + ' GSM'); }).join('')
           : inputHTML('products.' + k + '.kg', p.kg, 'Fabric used (kg)')) +
         inputHTML('products.' + k + '.cutting', p.cutting, 'Cutting') +
         inputHTML('products.' + k + '.stitching', p.stitching, 'Stitching') +
